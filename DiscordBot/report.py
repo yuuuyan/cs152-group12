@@ -190,7 +190,7 @@ class Report:
 
         if self.state == State.AWAITING_REVIEW:
             reply = "Your report is awaiting review by a moderator. Please wait for this report to be completed before submitting another report."
-            reply [reply]
+            return [reply]
             
 
         return []
