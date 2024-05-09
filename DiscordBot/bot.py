@@ -100,7 +100,7 @@ class ModBot(discord.Client):
         if self.reports[author_id].report_awaiting_review():
             mod_channel = self.mod_channels[self.guild_id] # hard coded; TODO: change this somehow...
             mod_message = "Report %s is ready for review..." % (author_id)
-            await mod_channel.send([mod_message])
+            await mod_channel.send(mod_message)
 
 
         # If the report is complete or cancelled, remove it from our map
@@ -113,14 +113,20 @@ class ModBot(discord.Client):
             return
 
         # Forward the message to the mod channel
-        mod_channel = self.mod_channels[self.guild.id]
+        mod_channel = self.mod_channels[self.guild_id]
         # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
         # scores = self.eval_text(message.content)
         # await mod_channel.send(self.code_format(scores))
 
         if "MOD_REVIEW" in message.content:
             init_review_text = message.content.strip().split()
-            author_id = init_review_text[1]
+            author_id = int(init_review_text[1])
+            dtype_key = type(list(self.reports.keys())[0]) if len(self.reports) > 0 else None
+            if dtype_key is not None:
+                try:
+                    author_id = dtype_key(author_id)
+                except:
+                    author_id = None
             if author_id not in self.reports.keys() or self.reports[author_id].report_complete():
                 reply = "Invalid report ID %s mentioned for moderator review. " % (author_id)
                 reply += "Please restart review process with the correct report ID."
@@ -135,7 +141,7 @@ class ModBot(discord.Client):
             reply = "Available reports are: "
             for author_id in self.reports.keys():
                 if not self.reports[author_id].report_complete():
-                    reply += author_id + " "
+                    reply += str(author_id) + " "
             await mod_channel.send(reply)
 
 

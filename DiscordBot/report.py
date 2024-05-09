@@ -39,6 +39,10 @@ class Report:
         # for verification in impersonation flow
         self.author_name = None
 
+        # author id
+        self.author_id = None
+        self.report_id = None
+
         # for terminating reporting process if wrong options are chosen
         self.num_attempts = 0
     
