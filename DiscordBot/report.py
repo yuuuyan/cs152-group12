@@ -84,7 +84,7 @@ class Report:
 
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
-            reply = "Would you like to report the user for impersonation or for spreading misinformation?"
+            reply = "Would you like to report the user for impersonation or for spreading misinformation? "
             reply += "Type \"impersonation\" for reporting impersonation and \"misinformation\" for reporting misinformation"
 
             self.message = message.content
@@ -103,17 +103,17 @@ class Report:
             if message.content.strip().lower() == "impersonation":
                 self.num_attempts = 0
                 self.state = State.IMPERSONATION_INIT
-                reply = "You have begun the impersonation reporting flow."
+                reply = "You have begun the impersonation reporting flow. "
                 reply += "Is the account impersonating someone? (Yes/No)"
 
             elif message.content.strip().lower() == "misinformation":
                 self.state = State.MISINFORMATION_INIT
                 self.num_attempts = 0
-                reply = "You have begun the misinformation reporting flow."
+                reply = "You have begun the misinformation reporting flow. "
                 reply += "Have you encountered misinformation? (Yes/No)"
             else:
                 self.num_attempts += 1
-                reply = "Invalid option %s provided. Please enter either \"misinformation\" or \"misinformation\""
+                reply = "Invalid option %s provided. Please enter either \"misinformation\" or \"impersonation\" "
             return [reply]
         
         if self.state == State.IMPERSONATION_INIT or self.state == State.MISINFORMATION_INIT:
@@ -122,28 +122,28 @@ class Report:
                 if self.state == State.IMPERSONATION_INIT:
                     reply = "Confirm the username of the account you are reporting:"
                 else:
-                    reply = "What kind of misinformation have you encountered?"
+                    reply = "What kind of misinformation have you encountered? "
                     reply += "Please enter one of the following: "
                     reply += "Manipulation, Fabrication, Misleading, Other, Satire/Parody"
                 self.state = State.YES_IMPERSONATION if self.state == State.IMPERSONATION_INIT  else State.YES_MISINFORMATION
             elif message.content.strip().lower() == "no":
                 self.num_attempts = 0
                 self.state = State.REPORT_CANCELLED
-                reply = "You have not indicated impersonation or disinformation. We are thus closing this report."
+                reply = "You have not indicated impersonation or misinformation. We are thus closing this report. "
                 reply += "Please follow the reporting flow the for the relevant abuse type."
             else:
                 self.num_attempts += 1
-                reply = "You have entered an invalid option for the question."
+                reply = "You have entered an invalid option for the question. "
                 reply += "Please enter yes or no to confirm if you are encountering online abuse."
             return [reply]
         
         if self.state == State.YES_IMPERSONATION:
             if message.content.strip() != self.author_name:
-                reply = "The author name confirmed here %s does not match the author name of the reported message %s." % (message.content.strip(), self.author_name)
+                reply = "The author name confirmed here %s does not match the author name of the reported message %s. " % (message.content.strip(), str(self.author_name))
                 reply += "We are thus closing this report."
                 self.state = State.REPORT_CANCELLED
             else:
-                reply = "You have confirmed %s as the person impersonating someone." % (self.author_name)
+                reply = "You have confirmed %s as the person impersonating someone. " % (str(self.author_name))
                 reply += "Who is being impersonated? Enter \"1\" if it you or an organisation you represent and \"2\" if it is someone else"
                 self.state = State.WHO_IMPERSONATION
             return [reply]
@@ -178,11 +178,11 @@ class Report:
                     reply = "This content does not violate our community guidelines."
                     self.state = State.REPORT_CANCELLED
                 else:
-                    reply = "Please feel free to provide any other information:"
+                    reply = "Please feel free to provide any other information: "
                     self.state = State.ADDITIONAL_INFO
             else:
                 self.num_attempts += 1
-                reply = "You entered an invalid misinformation type %s. Please enter the misinformation type again:" % (message.content)
+                reply = "You entered an invalid misinformation type %s. Please enter the misinformation type again: " % (message.content)
             return [reply]
             
 
