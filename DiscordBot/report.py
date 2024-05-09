@@ -31,7 +31,7 @@ class Report:
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
 
-    def __init__(self, client):
+    def __init__(self, client, author_id=None, submitted_reports=None):
         self.state = State.REPORT_START
         self.client = client
         self.message = None
@@ -39,12 +39,13 @@ class Report:
         # for verification in impersonation flow
         self.author_name = None
 
-        # author id
-        self.author_id = None
-        self.report_id = None
-
         # for terminating reporting process if wrong options are chosen
         self.num_attempts = 0
+
+        # keeping track of submitted reports
+        self.submitted_reports = submitted_reports
+        self.author_id = author_id
+        self.reported_message_id = None
     
     async def handle_message(self, message):
         '''
@@ -81,6 +82,11 @@ class Report:
                 message = await channel.fetch_message(int(m.group(3)))
             except discord.errors.NotFound:
                 return ["It seems this message was deleted or never existed. Please try again or say `cancel` to cancel."]
+            
+            self.reported_message_id = message.id
+            if self.reported_message_id is not None and str(self.author_id) + str(self.reported_message_id) in self.submitted_reports:
+                self.state = State.REPORT_CANCELLED
+                return ["There already exists a report from you for this message. Please wait for that to be resolved before starting another report."]
 
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
@@ -89,6 +95,8 @@ class Report:
 
             self.message = message.content
             self.author_name = message.author.name
+
+
 
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", reply]
         
@@ -166,7 +174,7 @@ class Report:
             return [reply]
 
         if self.state == State.USER_IMPERSONATED or self.state == State.SOMEONE_IMPERSONATED:
-            reply = "Thank you for providing the following information about your impersonation report. " % (message.content.strip())
+            reply = "Thank you for providing the following information about your impersonation report: %s. " % (message.content.strip())
             reply += "Please feel free to provide any other information:"
             self.state = State.ADDITIONAL_INFO
 

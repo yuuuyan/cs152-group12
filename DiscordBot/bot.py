@@ -8,6 +8,7 @@ import re
 import requests
 from report import Report
 import pdb
+from collections import defaultdict
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -34,6 +35,7 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
+        self.submitted_reports = {} # Map from (userID + msgID) to report
         self.guild_id = None
 
     async def on_ready(self):
@@ -89,7 +91,7 @@ class ModBot(discord.Client):
 
         # If we don't currently have an active report for this user, add one
         if author_id not in self.reports:
-            self.reports[author_id] = Report(self)
+            self.reports[author_id] = Report(self, author_id=author_id, submitted_reports=self.submitted_reports)
 
         # Let the report class handle this message; forward all the messages it returns to uss
         responses = await self.reports[author_id].handle_message(message)
@@ -99,12 +101,14 @@ class ModBot(discord.Client):
         # send message to moderator channel begining review process
         if self.reports[author_id].report_awaiting_review():
             mod_channel = self.mod_channels[self.guild_id] # hard coded; TODO: change this somehow...
-            mod_message = "Report %s is ready for review..." % (author_id)
+            report_seq = str(author_id) + str(self.reports[author_id].reported_message_id)
+            mod_message = "Report %s is ready for review..." % (report_seq)
+            report_to_review =  self.reports[author_id]
+            self.submitted_reports[report_seq] = report_to_review
+            self.reports.pop(author_id)
             await mod_channel.send(mod_message)
-
-
         # If the report is complete or cancelled, remove it from our map
-        if self.reports[author_id].report_complete():
+        elif self.reports[author_id].report_complete():
             self.reports.pop(author_id)
 
     async def handle_channel_message(self, message):
@@ -121,27 +125,31 @@ class ModBot(discord.Client):
         if "MOD_REVIEW" in message.content:
             init_review_text = message.content.strip().split()
             author_id = int(init_review_text[1])
-            dtype_key = type(list(self.reports.keys())[0]) if len(self.reports) > 0 else None
+            dtype_key = type(list(self.submitted_reports.keys())[0]) if len(self.submitted_reports) > 0 else None
             if dtype_key is not None:
                 try:
                     author_id = dtype_key(author_id)
                 except:
                     pass
-            if author_id not in self.reports.keys() or self.reports[author_id].report_complete():
+            if author_id not in self.submitted_reports.keys() or self.submitted_reports[author_id].report_complete():
+                if author_id in self.submitted_reports and self.submitted_reports[self.submitted_reports.pop(author_id)].report_complete():
+                    self.submitted_reports.pop(author_id)
                 reply = "Invalid report ID %s mentioned for moderator review. " % (author_id)
                 reply += "Please restart review process with the correct report ID."
                 await mod_channel.send(reply)
             else:
-                self.reports[author_id].print_moderator_summary()
+                self.submitted_reports[author_id].print_moderator_summary()
                 # TODO: fill in available actions with numbers
                 reply = "Available actions include: "
                 await mod_channel.send(reply)
 
         elif "SHOW_REPORTS" in message.content:
             reply = "Available reports are: "
-            for author_id in self.reports.keys():
-                if not self.reports[author_id].report_complete():
+            for author_id in self.submitted_reports.keys():
+                if not self.submitted_reports[author_id].report_complete():
                     reply += str(author_id) + " "
+                else:
+                    self.submitted_reports.pop(author_id)
             await mod_channel.send(reply)
 
 
@@ -149,7 +157,9 @@ class ModBot(discord.Client):
             init_action_text = message.content.strip().split()
             if len(init_action_text) != 3:
                 reply = "Invalid format for TAKE_ACTION. Expected \"TAKE_ACTION REPORT_ID ACTION_NUMBER\""
-            elif init_action_text[2] not in self.reports.keys() or self.reports[init_action_text[2]].report_complete():
+            elif init_action_text[2] not in self.submitted_reports.keys() or self.submitted_reports[init_action_text[2]].report_complete():
+                if self.submitted_reports[init_action_text[2]].report_complete():
+                    self.submitted_reports.pop(init_action_text[2])
                 reply = "Invalid report ID %s provided for TAKE_ACTION" % (init_action_text[2])
             elif init_action_text[3] not in []:
                 # TODO: replace empty list with list of integer strings representing valid actions
@@ -160,8 +170,8 @@ class ModBot(discord.Client):
                 # report ID is the same as author_ID which can help in sending them a direct message
 
                 # mark report as completed after executing action and pop from report map
-                self.reports[init_action_text[2]].mark_completed()
-                self.reports.pop(author_id)
+                self.submitted_reports[init_action_text[2]].mark_completed()
+                self.submitted_reports.pop(author_id)
 
 
 
