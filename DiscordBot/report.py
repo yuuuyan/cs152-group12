@@ -151,7 +151,7 @@ class Report:
                 reply += "We are thus closing this report."
                 self.state = State.REPORT_CANCELLED
             else:
-                reply = "You have confirmed %s as the person impersonating someone. " % (str(self.author_name))
+                reply = "You have confirmed %s as the person impersonating someone. " % (self.author_name)
                 reply += "Who is being impersonated? Enter \"1\" if it you or an organisation you represent and \"2\" if it is someone else"
                 self.state = State.WHO_IMPERSONATION
             return [reply]

@@ -122,8 +122,18 @@ class ModBot(discord.Client):
         # scores = self.eval_text(message.content)
         # await mod_channel.send(self.code_format(scores))
 
-        if "MOD_REVIEW" in message.content:
+        if "help" == message.content.strip().lower():
+            reply = "Available actions (case-sensitive) include: \n"
+            reply += "SHOW_REPORTS: Show all reports available for review\n"
+            reply += "MOD_REVIEW <REPORT ID>: Display moderator summmary for mentioned report\n"
+            reply += "TAKE_ACTION <REPORT ID> <ACTION ID>: Take the mentioned action on the given report and close report" 
+            await mod_channel.send(reply)
+        elif "MOD_REVIEW" in message.content:
             init_review_text = message.content.strip().split()
+            if len(init_review_text) != 2:
+                reply = "Incorrect format for command MOD_REVIEW. Expected \"MOD_REVIEW <REPORT ID>\"."
+                await mod_channel.send(reply)
+                return
             author_id = int(init_review_text[1])
             dtype_key = type(list(self.submitted_reports.keys())[0]) if len(self.submitted_reports) > 0 else None
             if dtype_key is not None:
@@ -156,22 +166,24 @@ class ModBot(discord.Client):
         elif "TAKE_ACTION" in message.content:
             init_action_text = message.content.strip().split()
             if len(init_action_text) != 3:
-                reply = "Invalid format for TAKE_ACTION. Expected \"TAKE_ACTION REPORT_ID ACTION_NUMBER\""
-            elif init_action_text[2] not in self.submitted_reports.keys() or self.submitted_reports[init_action_text[2]].report_complete():
-                if self.submitted_reports[init_action_text[2]].report_complete():
-                    self.submitted_reports.pop(init_action_text[2])
-                reply = "Invalid report ID %s provided for TAKE_ACTION" % (init_action_text[2])
-            elif init_action_text[3] not in []:
+                reply = "Invalid format for TAKE_ACTION. Expected \"TAKE_ACTION REPORT_ID ACTION_ID\"."
+            elif init_action_text[1] not in self.submitted_reports.keys() or self.submitted_reports[init_action_text[1]].report_complete():
+                if init_action_text[1] in self.submitted_reports and self.submitted_reports[init_action_text[1]].report_complete():
+                    self.submitted_reports.pop(init_action_text[1])
+                reply = "Invalid report ID %s provided for TAKE_ACTION" % (init_action_text[1])
+            elif init_action_text[2] not in []:
                 # TODO: replace empty list with list of integer strings representing valid actions
-                reply = "Invalid action %s provided for TAKE_ACTION" % (init_action_text[3])
+                reply = "Invalid action %s provided for TAKE_ACTION" % (init_action_text[2])
             else:
                 # TODO: implement moderator action based on report
                 # note: cannot actually delete users so just send them a direct message saying they are deleted isntead
                 # report ID is the same as author_ID which can help in sending them a direct message
 
                 # mark report as completed after executing action and pop from report map
-                self.submitted_reports[init_action_text[2]].mark_completed()
+                self.submitted_reports[init_action_text[1]].mark_completed()
                 self.submitted_reports.pop(author_id)
+
+            await mod_channel.send(reply)
 
 
 
