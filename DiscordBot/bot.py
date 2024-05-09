@@ -34,6 +34,7 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
+        self.guild_id = None
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -53,6 +54,7 @@ class ModBot(discord.Client):
             for channel in guild.text_channels:
                 if channel.name == f'group-{self.group_num}-mod':
                     self.mod_channels[guild.id] = channel
+                    self.guild_id = guild.id
         
 
     async def on_message(self, message):
@@ -96,9 +98,9 @@ class ModBot(discord.Client):
         
         # send message to moderator channel begining review process
         if self.reports[author_id].report_awaiting_review():
-            mod_channel = self.mod_channels[message.guild.id]
+            mod_channel = self.mod_channels[self.guild_id] # hard coded; TODO: change this somehow...
             mod_message = "Report %s is ready for review..." % (author_id)
-            await mod_channel.send(mod_message)
+            await mod_channel.send([mod_message])
 
 
         # If the report is complete or cancelled, remove it from our map
@@ -111,7 +113,7 @@ class ModBot(discord.Client):
             return
 
         # Forward the message to the mod channel
-        mod_channel = self.mod_channels[message.guild.id]
+        mod_channel = self.mod_channels[self.guild.id]
         # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
         # scores = self.eval_text(message.content)
         # await mod_channel.send(self.code_format(scores))
