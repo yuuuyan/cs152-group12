@@ -126,7 +126,7 @@ class ModBot(discord.Client):
                 try:
                     author_id = dtype_key(author_id)
                 except:
-                    author_id = None
+                    pass
             if author_id not in self.reports.keys() or self.reports[author_id].report_complete():
                 reply = "Invalid report ID %s mentioned for moderator review. " % (author_id)
                 reply += "Please restart review process with the correct report ID."
