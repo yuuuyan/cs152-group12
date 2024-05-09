@@ -93,21 +93,71 @@ class ModBot(discord.Client):
         responses = await self.reports[author_id].handle_message(message)
         for r in responses:
             await message.channel.send(r)
+        
+        # send message to moderator channel begining review process
+        if self.reports[author_id].report_awaiting_review():
+            mod_channel = self.mod_channels[message.guild.id]
+            mod_message = "Report %s is ready for review..." % (author_id)
+            await mod_channel.send(mod_message)
+
 
         # If the report is complete or cancelled, remove it from our map
         if self.reports[author_id].report_complete():
             self.reports.pop(author_id)
 
     async def handle_channel_message(self, message):
-        # Only handle messages sent in the "group-#" channel
-        if not message.channel.name == f'group-{self.group_num}':
+        # Only handle messages sent in the "group-#-mod" channel
+        if not message.channel.name == f'group-{self.group_num}-mod':
             return
 
         # Forward the message to the mod channel
         mod_channel = self.mod_channels[message.guild.id]
-        await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
-        scores = self.eval_text(message.content)
-        await mod_channel.send(self.code_format(scores))
+        # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
+        # scores = self.eval_text(message.content)
+        # await mod_channel.send(self.code_format(scores))
+
+        if "MOD_REVIEW" in message.content:
+            init_review_text = message.content.strip().split()
+            author_id = init_review_text[1]
+            if author_id not in self.reports.keys() or self.reports[author_id].report_complete():
+                reply = "Invalid report ID %s mentioned for moderator review. " % (author_id)
+                reply += "Please restart review process with the correct report ID."
+                await mod_channel.send(reply)
+            else:
+                self.reports[author_id].print_moderator_summary()
+                # TODO: fill in available actions with numbers
+                reply = "Available actions include: "
+                await mod_channel.send(reply)
+
+        elif "SHOW_REPORTS" in message.content:
+            reply = "Available reports are: "
+            for author_id in self.reports.keys():
+                if not self.reports[author_id].report_complete():
+                    reply += author_id + " "
+            await mod_channel.send(reply)
+
+
+        elif "TAKE_ACTION" in message.content:
+            init_action_text = message.content.strip().split()
+            if len(init_action_text) != 3:
+                reply = "Invalid format for TAKE_ACTION. Expected \"TAKE_ACTION REPORT_ID ACTION_NUMBER\""
+            elif init_action_text[2] not in self.reports.keys() or self.reports[init_action_text[2]].report_complete():
+                reply = "Invalid report ID %s provided for TAKE_ACTION" % (init_action_text[2])
+            elif init_action_text[3] not in []:
+                # TODO: replace empty list with list of integer strings representing valid actions
+                reply = "Invalid action %s provided for TAKE_ACTION" % (init_action_text[3])
+            else:
+                # TODO: implement moderator action based on report
+                # note: cannot actually delete users so just send them a direct message saying they are deleted isntead
+                # report ID is the same as author_ID which can help in sending them a direct message
+
+                # mark report as completed after executing action and pop from report map
+                self.reports[init_action_text[2]].mark_completed()
+                self.reports.pop(author_id)
+
+
+
+
 
     
     def eval_text(self, message):

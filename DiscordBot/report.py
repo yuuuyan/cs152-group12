@@ -11,6 +11,7 @@ class State(Enum):
     # general options added
     REPORT_CANCELLED = auto()
     ADDITIONAL_INFO = auto()
+    AWAITING_REVIEW = auto()
 
     # impersonation flow
     IMPERSONATION_INIT = auto()
@@ -40,9 +41,6 @@ class Report:
 
         # for terminating reporting process if wrong options are chosen
         self.num_attempts = 0
-
-        # 
-
     
     async def handle_message(self, message):
         '''
@@ -103,6 +101,7 @@ class Report:
                 self.state = State.IMPERSONATION_INIT
                 reply = "You have begun the impersonation reporting flow."
                 reply += "Is the account impersonating someone? (Yes/No)"
+
             elif message.content.strip().lower() == "misinformation":
                 self.state = State.MISINFORMATION_INIT
                 self.num_attempts = 0
@@ -185,11 +184,30 @@ class Report:
 
         if self.state == State.ADDITIONAL_INFO:
             reply = "Thank you for your efforts in making our platform safer. Our team will review your report shortly!"
-            self.state = State.REPORT_COMPLETE
+            self.state = State.AWAITING_REVIEW
             return [reply]
+
+
+        if self.state == State.AWAITING_REVIEW:
+            reply = "Your report is awaiting review by a moderator. Please wait for this report to be completed before submitting another report."
+            reply [reply]
             
 
         return []
+    
+
+    def print_moderator_summary(self):
+        # TODO: In the user reporting flow in handle_message, save relevant details in a string for both impersonation and misinformation flow
+        # return final moderator summary in this function after saving details above in class state
+        raise NotImplementedError("Custom function for printing report for moderator")
+    
+
+    def report_awaiting_review(self):
+        return self.state == State.AWAITING_REVIEW
+    
+
+    def mark_completed(self):
+        self.state = State.REPORT_COMPLETE
 
     def report_complete(self):
         return self.state == State.REPORT_COMPLETE or self.state == State.REPORT_CANCELLED
