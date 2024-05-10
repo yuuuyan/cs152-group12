@@ -221,8 +221,11 @@ class ModBot(discord.Client):
                     if code == "5":
                         # TODO: Delete message and warn author of the reported message
                         msg_content = self.submitted_reports[report_id].message.content
-                        await self.submitted_reports[report_id].message.delete()
-                        reply = "The following message has been deleted from the server: %s" % (msg_content)
+                        try:
+                            await self.submitted_reports[report_id].message.delete()
+                            reply = "The following message has been deleted from the server: %s" % (msg_content)
+                        except:
+                            reply = "The following message no longer exists on our server at the time of review: %s" % (msg_content)
 
                 # mark report as completed after executing action and pop from report map
                 self.submitted_reports[report_id].mark_completed()
