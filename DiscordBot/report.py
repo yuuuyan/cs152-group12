@@ -46,6 +46,9 @@ class Report:
         self.submitted_reports = submitted_reports
         self.author_id = author_id
         self.reported_message_id = None
+
+        # summary string of report
+        self.summary = ""
     
     async def handle_message(self, message):
         '''
@@ -96,7 +99,7 @@ class Report:
             self.message = message.content
             self.author_name = message.author.name
 
-
+            self.summary += ("Message: " + message.content + "; Author: " + message.author.name)
 
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", reply]
         
@@ -111,6 +114,7 @@ class Report:
             if message.content.strip().lower() == "impersonation":
                 self.num_attempts = 0
                 self.state = State.IMPERSONATION_INIT
+                self.summary += ("; Abuse type: impersonation")
                 reply = "You have begun the impersonation reporting flow. "
                 reply += "Is the account impersonating someone? (Yes/No)"
 
@@ -161,11 +165,13 @@ class Report:
             if parsed_msg == 1:
                 self.num_attempts = 0
                 self.state = State.USER_IMPERSONATED
+                self.summary += "; Victim of impersonation: user and/or user's organization"
                 reply = "You have confirmed that you or an organisation that you represent is being impersonated. "
                 reply += "Please provide a government identification number to verify your identity."
             elif parsed_msg == 2:
                 self.num_attempts = 0
                 self.state = State.SOMEONE_IMPERSONATED
+                self.summary += "; Victim of impersonation: someone else"
                 reply = "You have confirmed that someone else is being impersonated. " 
                 reply += "Why do you believe the account is impersonating someone?"
             else:
@@ -174,6 +180,7 @@ class Report:
             return [reply]
 
         if self.state == State.USER_IMPERSONATED or self.state == State.SOMEONE_IMPERSONATED:
+            self.summary += ("; Info on impersonation: " + message.content.strip())
             reply = "Thank you for providing the following information about your impersonation report: %s. " % (message.content.strip())
             reply += "Please feel free to provide any other information:"
             self.state = State.ADDITIONAL_INFO
@@ -181,6 +188,7 @@ class Report:
 
         if self.state == State.YES_MISINFORMATION:
             if message.content.strip().lower() in ["manipulation", "fabrication", "misleading", "other", "satire", "parody"]:
+                self.summary += ("; Abuse type: misinformation -- " + message.content.strip().lower())
                 self.num_attempts = 0
                 if message.content.strip().lower() in ["satire", "parody"]:
                     reply = "This content does not violate our community guidelines."
@@ -195,6 +203,7 @@ class Report:
             
 
         if self.state == State.ADDITIONAL_INFO:
+            self.summary += ("; Additional  info: " + message.content.strip())
             reply = "Thank you for your efforts in making our platform safer. Our team will review your report shortly!"
             self.state = State.AWAITING_REVIEW
             return [reply]
@@ -209,9 +218,7 @@ class Report:
     
 
     def print_moderator_summary(self):
-        # TODO: In the user reporting flow in handle_message, save relevant details in a string for both impersonation and misinformation flow
-        # return final moderator summary in this function after saving details above in class state
-        raise NotImplementedError("Custom function for printing report for moderator")
+        return [self.summary]
     
 
     def report_awaiting_review(self):

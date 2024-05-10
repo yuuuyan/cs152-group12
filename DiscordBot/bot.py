@@ -38,6 +38,9 @@ class ModBot(discord.Client):
         self.submitted_reports = {} # Map from (userID + msgID) to report
         self.guild_id = None
 
+        self.ActionDict = {1: "Determine malicous report", 2: "Warn reporter", 3: "Suspend account indefinitely", 
+                           4: "Suspend account for some time", 5: "Delete content and warn user"}
+
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
         for guild in self.guilds:
@@ -149,8 +152,7 @@ class ModBot(discord.Client):
                 await mod_channel.send(reply)
             else:
                 self.submitted_reports[author_id].print_moderator_summary()
-                # TODO: fill in available actions with numbers
-                reply = "Available actions include: "
+                reply = ["Available actions include (ID : ACTION): ", [str(key) + " : " + value + "\n" for key,value in self.ActionDict.items()]]
                 await mod_channel.send(reply)
 
         elif "SHOW_REPORTS" in message.content:
@@ -171,13 +173,46 @@ class ModBot(discord.Client):
                 if init_action_text[1] in self.submitted_reports and self.submitted_reports[init_action_text[1]].report_complete():
                     self.submitted_reports.pop(init_action_text[1])
                 reply = "Invalid report ID %s provided for TAKE_ACTION" % (init_action_text[1])
-            elif init_action_text[2] not in []:
-                # TODO: replace empty list with list of integer strings representing valid actions
+            elif init_action_text[2] not in self.ActionDict.keys():
                 reply = "Invalid action %s provided for TAKE_ACTION" % (init_action_text[2])
             else:
                 # TODO: implement moderator action based on report
                 # note: cannot actually delete users so just send them a direct message saying they are deleted isntead
                 # report ID is the same as author_ID which can help in sending them a direct message
+                code = init_action_text[2]
+                user = await self.fetch_user(int(init_action_text[1]))
+                if user:
+                    if code == 1:
+                        reply = "Is this a first-time offense for the reporter? Please reply \"yes\" or \"no\""
+                        await mod_channel.send(reply)
+                        
+                        # Wait for moderator response
+                        def check(response_message):
+                            return response_message.author == message.author and response_message.channel == mod_channel
+                        
+                        response_message = await self.wait_for('message', check=check)
+                        response_content = response_message.content.lower().strip()
+                        
+                        if response_content == 'yes':
+                            code = 2
+                        else:
+                            code = 4
+                    if code == 2:
+                        # Send warning DM to reporter
+                        try:
+                            await user.send("WARNING: Your account may be suspended if you continue to create malicious reports")
+                            reply = f"Warning sent to {user.name}"
+                        except discord.Forbidden:
+                            reply = "I do not have permissions to send a DM"
+                    if code == 3:
+                        # TODO: Send DM to the author of the reported message
+                        raise NotImplementedError
+                    if code == 4:
+                        # TODO: Suspend account for some amount of time
+                        raise NotImplementedError
+                    if code == 5:
+                        # TODO: Delete message and warn author of the reported message
+                        raise NotImplementedError
 
                 # mark report as completed after executing action and pop from report map
                 self.submitted_reports[init_action_text[1]].mark_completed()
