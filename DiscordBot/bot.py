@@ -180,9 +180,12 @@ class ModBot(discord.Client):
                 # note: cannot actually delete users so just send them a direct message saying they are deleted isntead
                 # report ID is the same as author_ID which can help in sending them a direct message
                 code = init_action_text[2]
-                user = await self.fetch_user(int(init_action_text[1]))
-                if user:
+                mal_reporter = False
+                abuser = await self.fetch_user(self.submitted_reports[author_id].abuser_id)
+                reporter = await self.fetch_user(self.submitted_reports[author_id].author_id)
+                if reporter and abuser:
                     if code == 1:
+                        mal_reporter = True
                         reply = "Is this a first-time offense for the reporter? Please reply \"yes\" or \"no\""
                         await mod_channel.send(reply)
                         
@@ -199,11 +202,12 @@ class ModBot(discord.Client):
                             code = 4
                     if code == 2:
                         # Send warning DM to reporter
-                        try:
-                            await user.send("WARNING: Your account may be suspended if you continue to create malicious reports")
-                            reply = f"Warning sent to {user.name}"
-                        except discord.Forbidden:
-                            reply = "I do not have permissions to send a DM"
+                        if mal_reporter:
+                            try:
+                                await reporter.send("WARNING: Your account may be suspended if you continue to create malicious reports")
+                                reply = f"Warning sent to {reporter.name}"
+                            except discord.Forbidden:
+                                reply = "I do not have permissions to send a DM"
                     if code == 3:
                         # TODO: Send DM to the author of the reported message
                         raise NotImplementedError

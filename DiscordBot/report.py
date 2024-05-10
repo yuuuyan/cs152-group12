@@ -38,6 +38,7 @@ class Report:
 
         # for verification in impersonation flow
         self.author_name = None
+        self.abuser_id = None
 
         # for terminating reporting process if wrong options are chosen
         self.num_attempts = 0
@@ -98,6 +99,7 @@ class Report:
 
             self.message = message.content
             self.author_name = message.author.name
+            self.abuser_id = message.author.id
 
             self.summary += ("Message: " + message.content + "; Author: " + message.author.name)
 
