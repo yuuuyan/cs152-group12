@@ -152,7 +152,7 @@ class ModBot(discord.Client):
                 await mod_channel.send(reply)
             else:
                 reply = self.submitted_reports[author_id].print_moderator_summary()[0] + "\n"
-                reply += "Available actions include (ID : ACTION): "
+                reply += "Available actions include (ID : ACTION): \n"
                 reply += "".join([str(key) + " : " + value + "\n" for key,value in self.ActionDict.items()])
                 await mod_channel.send(reply)
 
@@ -168,13 +168,15 @@ class ModBot(discord.Client):
 
         elif "TAKE_ACTION" in message.content:
             init_action_text = message.content.strip().split()
+            actions_str = list(self.ActionDict.keys())
+            actions_str = [str(x) for x in actions_str]
             if len(init_action_text) != 3:
                 reply = "Invalid format for TAKE_ACTION. Expected \"TAKE_ACTION REPORT_ID ACTION_ID\"."
             elif init_action_text[1] not in self.submitted_reports.keys() or self.submitted_reports[init_action_text[1]].report_complete():
                 if init_action_text[1] in self.submitted_reports and self.submitted_reports[init_action_text[1]].report_complete():
                     self.submitted_reports.pop(init_action_text[1])
                 reply = "Invalid report ID %s provided for TAKE_ACTION" % (init_action_text[1])
-            elif init_action_text[2] not in self.ActionDict.keys():
+            elif init_action_text[2] not in actions_str:
                 reply = "Invalid action %s provided for TAKE_ACTION" % (init_action_text[2])
             else:
                 # TODO: implement moderator action based on report
@@ -182,10 +184,11 @@ class ModBot(discord.Client):
                 # report ID is the same as author_ID which can help in sending them a direct message
                 code = init_action_text[2]
                 mal_reporter = False
-                abuser = await self.fetch_user(self.submitted_reports[author_id].abuser_id)
-                reporter = await self.fetch_user(self.submitted_reports[author_id].author_id)
+                report_id = init_action_text[1]
+                abuser = await self.fetch_user(self.submitted_reports[report_id].abuser_id)
+                reporter = await self.fetch_user(self.submitted_reports[report_id].author_id)
                 if reporter and abuser:
-                    if code == 1:
+                    if code == "1":
                         mal_reporter = True
                         reply = "Is this a first-time offense for the reporter? Please reply \"yes\" or \"no\""
                         await mod_channel.send(reply)
@@ -198,10 +201,10 @@ class ModBot(discord.Client):
                         response_content = response_message.content.lower().strip()
                         
                         if response_content == 'yes':
-                            code = 2
+                            code = "2"
                         else:
-                            code = 4
-                    if code == 2:
+                            code = "4"
+                    if code == "2":
                         # Send warning DM to reporter
                         if mal_reporter:
                             try:
@@ -209,19 +212,21 @@ class ModBot(discord.Client):
                                 reply = f"Warning sent to {reporter.name}"
                             except discord.Forbidden:
                                 reply = "I do not have permissions to send a DM"
-                    if code == 3:
+                    if code == "3":
                         # TODO: Send DM to the author of the reported message
                         raise NotImplementedError
-                    if code == 4:
+                    if code == "4":
                         # TODO: Suspend account for some amount of time
                         raise NotImplementedError
-                    if code == 5:
+                    if code == "5":
                         # TODO: Delete message and warn author of the reported message
-                        raise NotImplementedError
+                        msg_content = self.submitted_reports[report_id].message.content
+                        await self.submitted_reports[report_id].message.delete()
+                        reply = "The following message has been deleted from the server: %s" % (msg_content)
 
                 # mark report as completed after executing action and pop from report map
-                self.submitted_reports[init_action_text[1]].mark_completed()
-                self.submitted_reports.pop(author_id)
+                self.submitted_reports[report_id].mark_completed()
+                self.submitted_reports.pop(report_id)
 
             await mod_channel.send(reply)
 

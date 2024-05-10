@@ -97,7 +97,7 @@ class Report:
             reply = "Would you like to report the user for impersonation or for spreading misinformation? "
             reply += "Type \"impersonation\" for reporting impersonation and \"misinformation\" for reporting misinformation"
 
-            self.message = message.content
+            self.message = message
             self.author_name = message.author.name
             self.abuser_id = message.author.id
 
