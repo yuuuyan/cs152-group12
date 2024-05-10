@@ -205,12 +205,11 @@ class ModBot(discord.Client):
                             reply = "Invalid entry"
                     if code == "2":
                         # Send warning DM to reporter
-                        if mal_reporter:
-                            try:
-                                await reporter.send("WARNING: Your account may be suspended if you continue to create malicious reports.")
-                                reply = f"Warning sent to {reporter.name}"
-                            except discord.Forbidden:
-                                reply = "I do not have permissions to send a DM."
+                        try:
+                            await reporter.send("WARNING: Your account may be suspended if you continue to create malicious reports.")
+                            reply = f"Warning sent to {reporter.name}"
+                        except discord.Forbidden:
+                            reply = "I do not have permissions to send a DM."
                     if code == "3":
                         try:
                             await abuser.send("ATTENTION: Your account has been indefinitely suspended for violating our community guidelines.")
