@@ -151,8 +151,9 @@ class ModBot(discord.Client):
                 reply += "Please restart review process with the correct report ID."
                 await mod_channel.send(reply)
             else:
-                self.submitted_reports[author_id].print_moderator_summary()
-                reply = ["Available actions include (ID : ACTION): ", [str(key) + " : " + value + "\n" for key,value in self.ActionDict.items()]]
+                reply = self.submitted_reports[author_id].print_moderator_summary()[0] + "\n"
+                reply += "Available actions include (ID : ACTION): "
+                reply += "".join([str(key) + " : " + value + "\n" for key,value in self.ActionDict.items()])
                 await mod_channel.send(reply)
 
         elif "SHOW_REPORTS" in message.content:
