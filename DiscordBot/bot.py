@@ -179,9 +179,6 @@ class ModBot(discord.Client):
             elif init_action_text[2] not in actions_str:
                 reply = "Invalid action %s provided for TAKE_ACTION" % (init_action_text[2])
             else:
-                # TODO: implement moderator action based on report
-                # note: cannot actually delete users so just send them a direct message saying they are deleted isntead
-                # report ID is the same as author_ID which can help in sending them a direct message
                 code = init_action_text[2]
                 mal_reporter = False
                 report_id = init_action_text[1]
@@ -190,7 +187,7 @@ class ModBot(discord.Client):
                 if reporter and abuser:
                     if code == "1":
                         mal_reporter = True
-                        reply = "Is this a first-time offense for the reporter? Please reply \"yes\" or \"no\""
+                        reply = "Is this a first-time offense for the reporter? Please reply \"y\" or \"n\""
                         await mod_channel.send(reply)
                         
                         # Wait for moderator response
@@ -200,30 +197,60 @@ class ModBot(discord.Client):
                         response_message = await self.wait_for('message', check=check)
                         response_content = response_message.content.lower().strip()
                         
-                        if response_content == 'yes':
+                        if response_content == 'y':
                             code = "2"
-                        else:
+                        elif response_content == 'n':
                             code = "4"
+                        else:
+                            reply = "Invalid entry"
                     if code == "2":
                         # Send warning DM to reporter
                         if mal_reporter:
                             try:
-                                await reporter.send("WARNING: Your account may be suspended if you continue to create malicious reports")
+                                await reporter.send("WARNING: Your account may be suspended if you continue to create malicious reports.")
                                 reply = f"Warning sent to {reporter.name}"
                             except discord.Forbidden:
-                                reply = "I do not have permissions to send a DM"
+                                reply = "I do not have permissions to send a DM."
                     if code == "3":
-                        # TODO: Send DM to the author of the reported message
-                        raise NotImplementedError
+                        try:
+                            await abuser.send("ATTENTION: Your account has been indefinitely suspended for violating our community guidelines.")
+                            reply = f"The account of {abuser.name} has been suspended indefinitely"
+                        except discord.Forbidden:
+                            reply = "I do not have persmissions to send a DM."
                     if code == "4":
-                        # TODO: Suspend account for some amount of time
-                        raise NotImplementedError
+                        reply = "How long should their account be suspended for? (e.g. 60hrs)"
+                        await mod_channel.send(reply)
+
+                        # Wait for moderator response
+                        def check(response_message):
+                            return response_message.author == message.author and response_message.channel == mod_channel
+                        
+                        response_message = await self.wait_for('message', check=check)
+                        time = response_message.content.lower().strip()
+                        
+                        if mal_reporter:
+                            try:
+                                await reporter.send(f"ATTENTION: Your account has been suspended for malicous reporting for {time}.")
+                                reply = f"The account of {reporter.name} has been suspended for {time}."
+                            except discord.Forbidden:
+                                reply = "I do not have permissions to send a DM."
+                        else:
+                            try:
+                                await abuser.send(f"ATTENTION: Your account has been suspended for {time} for violating our community guidelines.")
+                                reply = f"The account of {abuser.name} has been suspended for {time}."
+                            except discord.Forbidden:
+                                reply = "I do not have permissions to send a DM."
+
                     if code == "5":
-                        # TODO: Delete message and warn author of the reported message
                         msg_content = self.submitted_reports[report_id].message.content
                         try:
                             await self.submitted_reports[report_id].message.delete()
                             reply = "The following message has been deleted from the server: %s" % (msg_content)
+                            try:
+                                await abuser.send(f"WARNING: Your account may be suspended if you continue to post content in violation of our community guidelines.")
+                                reply += f" and a warning has been sent to {abuser.name}."
+                            except discord.Forbidden:
+                                reply += " Could not send a warning, I do not haver permissions to send a DM."
                         except:
                             reply = "The following message no longer exists on our server at the time of review: %s" % (msg_content)
 
@@ -232,11 +259,6 @@ class ModBot(discord.Client):
                 self.submitted_reports.pop(report_id)
 
             await mod_channel.send(reply)
-
-
-
-
-
     
     def eval_text(self, message):
         ''''
