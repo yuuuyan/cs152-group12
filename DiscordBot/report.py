@@ -101,7 +101,7 @@ class Report:
             self.author_name = message.author.name
             self.abuser_id = message.author.id
 
-            self.summary += ("Message: " + message.content + "; Author: " + message.author.name)
+            self.summary += ("Reporter: " + self.author_name + "; Message: " + message.content + "; Author: " + message.author.name)
 
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", reply]
         
