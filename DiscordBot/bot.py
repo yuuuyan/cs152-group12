@@ -9,6 +9,8 @@ import requests
 from report import Report
 import pdb
 from collections import defaultdict
+from dataclasses import dataclass
+from typing import Optional
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -26,6 +28,14 @@ with open(token_path) as f:
     tokens = json.load(f)
     discord_token = tokens['discord']
 
+@dataclass
+class UserStats:
+    name: Optional[str] = None
+    total_reports: int = 0
+    num_malicious_reports: int = 0
+    num_suspensions: int = 0
+    num_posts_deleted: int = 0
+
 
 class ModBot(discord.Client):
     def __init__(self): 
@@ -37,9 +47,13 @@ class ModBot(discord.Client):
         self.reports = {} # Map from user IDs to the state of their report
         self.submitted_reports = {} # Map from (userID + msgID) to report
         self.guild_id = None
+        self.username_map = {} # map of username to user id
 
-        self.ActionDict = {1: "Determine malicous report", 2: "Warn reporter", 3: "Suspend account indefinitely", 
-                           4: "Suspend account for some time", 5: "Delete content and warn user"}
+        # map from user names to statistics about user regarding moderation
+        self.user_stats = defaultdict(UserStats)
+
+        self.ActionDict = {1: "Determine malicous report", 2: "Suspend account indefinitely", 
+                           3: "Suspend account for some time", 4: "Delete content and warn user"}
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -103,6 +117,16 @@ class ModBot(discord.Client):
         
         # send message to moderator channel begining review process
         if self.reports[author_id].report_awaiting_review():
+
+            if author_id not in self.user_stats.keys() or len(self.user_stats[author_id].name) == 0:
+                self.user_stats[author_id].name = author_id
+
+            self.username_map[self.reports[author_id].author_name] = self.reports[author_id].abuser_id
+            self.username_map[message.author.name] = author_id
+
+            # incrementing report count
+            self.user_stats[author_id].total_reports += 1
+
             mod_channel = self.mod_channels[self.guild_id] # hard coded; TODO: change this somehow...
             report_seq = str(author_id) + str(self.reports[author_id].reported_message_id)
             mod_message = "Report %s is ready for review..." % (report_seq)
@@ -129,7 +153,10 @@ class ModBot(discord.Client):
             reply = "Available actions (case-sensitive) include: \n"
             reply += "SHOW_REPORTS: Show all reports available for review\n"
             reply += "MOD_REVIEW <REPORT ID>: Display moderator summmary for mentioned report\n"
-            reply += "TAKE_ACTION <REPORT ID> <ACTION ID>: Take the mentioned action on the given report and close report" 
+            reply += "TAKE_ACTION <REPORT ID> <ACTION ID>: Take the mentioned action on the given report and close report\n"
+            reply += "USER_STATS <USERNAME>: Print out statistics about user's moderation history\n"
+            reply += "PRINT_USERS: List usernames which have a moderation record associated with them\n"
+
             await mod_channel.send(reply)
         elif "MOD_REVIEW" in message.content:
             init_review_text = message.content.strip().split()
@@ -168,6 +195,7 @@ class ModBot(discord.Client):
 
 
         elif "TAKE_ACTION" in message.content:
+
             init_action_text = message.content.strip().split()
             actions_str = list(self.ActionDict.keys())
             actions_str = [str(x) for x in actions_str]
@@ -185,40 +213,66 @@ class ModBot(discord.Client):
                 report_id = init_action_text[1]
                 abuser = await self.fetch_user(self.submitted_reports[report_id].abuser_id)
                 reporter = await self.fetch_user(self.submitted_reports[report_id].author_id)
+
                 if reporter and abuser:
+                    abuser_id = self.submitted_reports[report_id].abuser_id
+                    reporter_id = self.submitted_reports[report_id].author_id
+
+                    # filling metadata for printing user statistics - only need to track here
+                    #  as otherwise can print default stats since no action was taken to change defaults
+                    self.username_map[abuser.name] = abuser_id
+                    self.username_map[reporter.name] = reporter_id
+
+                    # did not store this when starting stats for reporter
+                    self.user_stats[abuser.id].name = abuser.name
+
                     if code == "1":
                         mal_reporter = True
-                        reply = "Is this a first-time offense for the reporter? Please reply \"y\" or \"n\""
-                        await mod_channel.send(reply)
+                        response_content = None
+
+                        if self.user_stats[reporter_id].num_malicious_reports > 0:
+                            response_content = 'n' # not first time offense
+                        else:
+                            response_content = 'y' # is first time offense
+
+                        self.user_stats[reporter_id].num_malicious_reports += 1
+
+                        # automating this based on tracked statistics
+                        # reply = "Is this a first-time offense for the reporter? Please reply \"y\" or \"n\""
+                        # await mod_channel.send(reply)
                         
-                        # Wait for moderator response
-                        def check(response_message):
-                            return response_message.author == message.author and response_message.channel == mod_channel
+                        # # Wait for moderator response
+                        # def check(response_message):
+                        #     return response_message.author == message.author and response_message.channel == mod_channel
                         
-                        response_message = await self.wait_for('message', check=check)
-                        response_content = response_message.content.lower().strip()
+                        # response_message = await self.wait_for('message', check=check)
+                        # response_content = response_message.content.lower().strip()
                         
                         if response_content == 'y':
-                            code = "2"
+                            code = "MALICIOUS_WARNING"
                         elif response_content == 'n':
-                            code = "4"
+                            code = "3"
                         else:
                             reply = "Invalid entry"
-                    if code == "2":
+                    if code == "MALICIOUS_WARNING": # no need in action_dict since we automatically track this in statistics now
                         # Send warning DM to reporter
                         try:
                             await reporter.send("WARNING: Your account may be suspended if you continue to create malicious reports.")
                             reply = f"Warning sent to {reporter.name}"
                         except discord.Forbidden:
                             reply = "I do not have permissions to send a DM."
-                    if code == "3":
+                    if code == "2": # indefinite suspension
                         try:
                             await abuser.send("ATTENTION: Your account has been indefinitely suspended for violating our community guidelines.")
                             reply = f"The account of {abuser.name} has been suspended indefinitely"
+                            self.user_stats[abuser_id].num_suspensions += 1
                         except discord.Forbidden:
                             reply = "I do not have persmissions to send a DM."
-                    if code == "4":
-                        reply = "How long should their account be suspended for? (e.g. 60hrs)"
+                    if code == "3": # suspension of mentioned duration
+                        reply = ""
+                        if mal_reporter:
+                            reply += "This account has created %d malicious reports previously. " % (self.user_stats[reporter_id].num_malicious_reports - 1)
+                        reply += "How long should their account be suspended for? (e.g. 60hrs)"
                         await mod_channel.send(reply)
 
                         # Wait for moderator response
@@ -231,23 +285,28 @@ class ModBot(discord.Client):
                         if mal_reporter:
                             try:
                                 await reporter.send(f"ATTENTION: Your account has been suspended for malicous reporting for {time}.")
+                                self.user_stats[reporter_id].num_suspensions += 1
                                 reply = f"The account of {reporter.name} has been suspended for {time}."
                             except discord.Forbidden:
                                 reply = "I do not have permissions to send a DM."
                         else:
                             try:
                                 await abuser.send(f"ATTENTION: Your account has been suspended for {time} for violating our community guidelines.")
+                                self.user_stats[abuser_id].num_suspensions += 1
                                 reply = f"The account of {abuser.name} has been suspended for {time}."
                             except discord.Forbidden:
                                 reply = "I do not have permissions to send a DM."
 
-                    if code == "5":
+                    if code == "4": # delete content
                         msg_content = self.submitted_reports[report_id].message.content
                         try:
                             await self.submitted_reports[report_id].message.delete()
                             reply = "The following message has been deleted from the server: %s" % (msg_content)
+                            self.user_stats[abuser_id].num_posts_deleted += 1
                             try:
-                                await abuser.send(f"WARNING: Your account may be suspended if you continue to post content in violation of our community guidelines.")
+                                abuser_msg = f"WARNING: Your account may be suspended if you continue to post content in violation of our community guidelines. "
+                                abuser_msg += "We deleted the following message from our platform since it violated our community guidelines: %s" % (msg_content)
+                                await abuser.send(abuser_msg)
                                 reply += f" and a warning has been sent to {abuser.name}."
                             except discord.Forbidden:
                                 reply += " Could not send a warning, I do not haver permissions to send a DM."
@@ -259,6 +318,44 @@ class ModBot(discord.Client):
                 self.submitted_reports.pop(report_id)
 
             await mod_channel.send(reply)
+
+        elif 'USER_STATS' in message.content:
+            msg = message.content.strip().split()
+            if len(msg) != 2:
+                reply = "Invalid format for USER_STATS. Expected \"USER_STATS USERNAME\""
+            else:
+                username = msg[1]
+
+                if username in self.username_map.keys():
+                    user_id = self.username_map[username]
+                    is_found = await self.fetch_user(user_id)
+                else:
+                    is_found = None
+
+                if is_found is None:
+                    user_stats = UserStats()
+                else:
+                    user_stats = self.user_stats[user_id]
+                reply = "Here are the statistics for username %s:\n" % (username)
+                reply += "Total reports: %d\n" % (user_stats.total_reports) 
+                reply += "Malicious reports: %d\n" % (user_stats.num_malicious_reports) 
+                reply += "Number of suspensions: %d\n" % (user_stats.num_suspensions)
+                reply += "Number of posts deleted: %d\n" %  (user_stats.num_posts_deleted)
+
+            await mod_channel.send(reply)
+        
+        elif 'PRINT_USERS' in message.content:
+            if len(message.content.strip().split()) != 1:
+                reply = "Invalid format for PRINT_USERS. Expected \"PRINT_USERS\""
+            else:
+                available_users = list(self.username_map)
+                reply = "We have records for the following %d users:\n" % (len(available_users))
+                for e, u in enumerate(available_users):
+                    reply += u
+                    if e != len(available_users) - 1:
+                        reply += ", "
+            await mod_channel.send(reply)
+
     
     def eval_text(self, message):
         ''''
