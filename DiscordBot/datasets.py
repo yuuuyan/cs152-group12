@@ -20,9 +20,24 @@ class DisinformationDataset(Dataset):
     def preprocess_data(self):
         """
         TODO:
-        - code data preparation
+        - finish coding data preparation
+        - determine what X and y are
+        - 
         """
-        return
+        df = pd.DataFrame(self.data)
+
+        # TODO: adjust this to fit format of final dataset
+        self.texts = df['text'].tolist()
+        self.labels = df['label'].tolist()
+        self.vocab = self.build_vocab(self.texts)
+    
+    def build_vocab(self, texts):
+        vocab = {'<PAD>': 0, '<UNK>': 1}
+        for text in texts:
+            for word in text.split():
+                if word not in vocab:
+                    vocab[word] = len(vocab)
+        return vocab    
 
 def get_loader(filepath, batch_size=32, shuffle=True):
     """
