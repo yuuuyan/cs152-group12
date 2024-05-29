@@ -28,13 +28,14 @@ class SimpleRNN(nn.Module):
         out = self.fc(out[:, -1, :])
         return out
 
+# TODO: add filepath for data
 filepath = ''
 disinfo_dataset = DisinformationDataset(filepath=filepath)
 
-# TODO: verify values are correct
+# TODO: dummy dimensions; replace with real ones after finalizing dataset
 batch_size = 32
 input_features = 20
-num_classes = 4
+num_classes = 2
 
 inputs = disinfo_dataset.data
 labels = torch.randint(0, num_classes, (batch_size,))
