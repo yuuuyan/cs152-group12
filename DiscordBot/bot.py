@@ -11,6 +11,9 @@ import pdb
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
+import vertexai
+from vertexai.generative_models import GenerativeModel
+from together import Together
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -18,6 +21,10 @@ logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
+
+# API Access 
+TOGETHER_AI_API_KEY = "368f91cfda9ddef7e1c17a401e54ac7aa16a70900935627505e5beeee1b66c5c"
+GCP_PROJECT_ID = "fluent-sprite-424817-q5"
 
 # There should be a file called 'tokens.json' inside the same folder as this file
 token_path = 'tokens.json'
@@ -110,7 +117,7 @@ class ModBot(discord.Client):
         if author_id not in self.reports:
             self.reports[author_id] = Report(self, author_id=author_id, submitted_reports=self.submitted_reports)
 
-        # Let the report class handle this message; forward all the messages it returns to uss
+        # Let the report class handle this message; forward all the messages it returns to us
         responses = await self.reports[author_id].handle_message(message)
         for r in responses:
             await message.channel.send(r)
@@ -139,15 +146,19 @@ class ModBot(discord.Client):
             self.reports.pop(author_id)
 
     async def handle_channel_message(self, message):
-        # Only handle messages sent in the "group-#-mod" channel
-        if not message.channel.name == f'group-{self.group_num}-mod':
-            return
-
-        # Forward the message to the mod channel
         mod_channel = self.mod_channels[self.guild_id]
+        # Handle messages sent outside of mod channel
+        if not message.channel.name == f'group-{self.group_num}-mod':
+            # Evaluate text
+            await mod_channel.send(self.eval_text(message.content))
+        
+        # Handle messages in mod channel
+        # Forward the message to the mod channel
+        
         # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
         # scores = self.eval_text(message.content)
         # await mod_channel.send(self.code_format(scores))
+        # await mod_channel.send(self.eval_text(message.content))
 
         if "help" == message.content.strip().lower():
             reply = "Available actions (case-sensitive) include: \n"
@@ -362,7 +373,12 @@ class ModBot(discord.Client):
         TODO: Once you know how you want to evaluate messages in your channel, 
         insert your code here! This will primarily be used in Milestone 3. 
         '''
-        return message
+        prompt = "On a binary scale (yes, no) without providing reasoning and in the format 'Impersonation: [RATING]; Misinformation: [RATING]', please rate this tweet on X in terms of both impersonation and misinformation: "
+        response_70B = self.query_together_ai("meta-llama/Llama-3-70b-chat-hf", prompt+message)
+        response_8B = self.query_together_ai("meta-llama/Llama-3-8b-chat-hf", prompt+message)
+        response_gcp = self.query_gcp(prompt+message)
+
+        return (f"70B Response: {response_70B}\n8B Response: {response_8B}\nGCP Response: {response_gcp}")
 
     
     def code_format(self, text):
@@ -373,6 +389,26 @@ class ModBot(discord.Client):
         '''
         return "Evaluated: '" + text+ "'"
 
+    def query_together_ai(self, model: str, text: str) -> dict:
+        client = Together(api_key=TOGETHER_AI_API_KEY)
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": text}]
+        )
+
+        return response.choices[0].message.content
+
+
+    def query_gcp(self, text: str) -> dict:
+        vertexai.init(project=GCP_PROJECT_ID, location="us-central1")
+        model = GenerativeModel(model_name="gemini-1.0-pro-002")
+
+        response = model.generate_content(
+            text
+        )
+
+        return response.text
 
 client = ModBot()
 client.run(discord_token)
