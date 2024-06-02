@@ -239,7 +239,7 @@ class Report:
 class AutomaticReport(Report):
 
     def __init__(self, client, submitted_reports=None):
-        super.__init__(client, author_id=None, submitted_reports=submitted_reports)
+        super(AutomaticReport, self).__init__(client, author_id=None, submitted_reports=submitted_reports)
         self.num_automatic_violations = None
         self.report_type = 'automatic'
         self.author_id = None
@@ -250,11 +250,11 @@ class AutomaticReport(Report):
         self.abuser_username = abuser_username
         self.num_automatic_violations = num_automatic_violations
         self.deleted_msgs = deleted_msgs
-        self.submitted_reports[abuser_id] = self # updating report to latest report
+        self.submitted_reports[str(abuser_id)] = self # updating report to latest report
 
 
     def print_moderator_summary(self):
-        reply = "User %s has been flagged by the automatic moderation policy %d times. Deleted messages incldue:\n" % (self.abuser_username, self.num_automatic_violations)
+        reply = "User %s has been flagged by the automatic moderation policy %d times. Deleted messages include:\n" % (self.abuser_username, self.num_automatic_violations)
         for msg in self.deleted_msgs:
             reply += msg + "\n"
         reply += "Consider suspending the account if the messages violate community guidelines"

@@ -29,11 +29,28 @@ NUM_FLAG_AUTOMATIC = 3
 # GEMINI, LLAMA_70B, LLAMA_8B, CLASSIFIER
 class LLM_Moderator(Enum):
     gemini = 1
-    llama_70b = 2
-    llama_8b = 3
+    llama70b = 2
+    llama8b = 3
     classifier = 4
-    flag_everything = 5
-    flag_nothing = 6
+    everything = 5
+    nothing = 6
+
+    @staticmethod
+    def from_str(label):
+        if label == "gemini":
+            return LLM_Moderator.gemini
+        elif label == "llama70b":
+            return LLM_Moderator.llama70b
+        elif label == "llama8b":
+            return LLM_Moderator.llama8b
+        elif label == "classifier":
+            return LLM_Moderator.classifier
+        elif label == "everything":
+            return LLM_Moderator.everything
+        elif label == "nothing":
+            return LLM_Moderator.nothing
+        else:
+            raise NotImplementedError("Invalid llm moderation policy %s provided" % (label))
 
 
 # There should be a file called 'tokens.json' inside the same folder as this file
@@ -46,7 +63,7 @@ with open(token_path) as f:
     discord_token = tokens['discord']
     TOGETHER_AI_API_KEY = tokens['together-ai']
     GCP_PROJECT_ID = tokens['gcp']
-    ml_moderator = LLM_Moderator(tokens['llm-moderator'].lower())
+    ml_moderator = LLM_Moderator.from_str(tokens['llm-moderator'].lower())
 
 @dataclass
 class UserStats:
@@ -168,6 +185,7 @@ class ModBot(discord.Client):
         if not message.channel.name == f'group-{self.group_num}-mod':
             # Evaluate text
             found_malicious_message = self.eval_text(message.content)
+
             if found_malicious_message:
                 abuser_id = message.author.id
                 abuser_name = message.author.name
@@ -194,8 +212,8 @@ class ModBot(discord.Client):
                     deleted_msgs = self.auto_deleted_msgs[abuser_id]
 
                     # create report for moderator for automatic flagging
-                    report = AutomaticReport.create_report(self, abuser_id, abuser_name, self.user_stats[abuser_id].automatic_post_deletions, deleted_msgs)
-                    self.submitted_reports[abuser_id] = report
+                    report = AutomaticReport(client, self.submitted_reports)
+                    report.create_report(abuser_id, abuser_name, self.user_stats[abuser_id].automatic_post_deletions, deleted_msgs)
 
                     # inform moderator that it is available for review
                     mod_message = "Automatic report %s is ready for review..." % (abuser_id)
@@ -240,8 +258,12 @@ class ModBot(discord.Client):
                     reply += "Please restart review process with the correct report ID."
                     await mod_channel.send(reply)
                 else:
-                    reporter = await self.fetch_user(self.submitted_reports[author_id].author_id)
-                    reply = f"Reporter: {reporter.name}; " + self.submitted_reports[author_id].print_moderator_summary()[0] + "\n"
+                    if self.submitted_reports[author_id].report_type != "automatic":
+                        reporter = await self.fetch_user(self.submitted_reports[author_id].author_id)
+                    else:
+                        reporter = None
+                    reporter_name = reporter.name if reporter else "DISCORD_BOT"
+                    reply = f"Reporter: {reporter_name}; " + self.submitted_reports[author_id].print_moderator_summary()[0] + "\n"
                     reply += "Available actions include (ID : ACTION): \n"
 
                     if self.submitted_reports[author_id].report_type != "automatic":
@@ -252,6 +274,7 @@ class ModBot(discord.Client):
 
             elif "SHOW_REPORTS" in message.content:
                 reply = "Available reports are: "
+
                 for author_id in self.submitted_reports.keys():
                     if not self.submitted_reports[author_id].report_complete():
                         reply += str(author_id) + " "
@@ -454,18 +477,18 @@ class ModBot(discord.Client):
         prompt = "On a binary scale (yes, no) without providing reasoning and in the format 'Impersonation: [RATING]; Misinformation: [RATING]', please rate this tweet on X in terms of both impersonation and misinformation: "
 
         try:
-            if ml_moderator == LLM_Moderator.llama_70b:
+            if ml_moderator == LLM_Moderator.llama70b:
                 response = self.query_together_ai("meta-llama/Llama-3-70b-chat-hf", prompt+message)
-            elif ml_moderator == LLM_Moderator.llama_8b:
+            elif ml_moderator == LLM_Moderator.llama8b:
                 response = self.query_together_ai("meta-llama/Llama-3-8b-chat-hf", prompt+message)
             elif ml_moderator == LLM_Moderator.gemini:
                 response = self.query_gcp(prompt+message)
             elif ml_moderator == LLM_Moderator.classifier:
                 raise NotImplementedError("Classifier not implemented for moderation yet")
                 response = None
-            elif ml_moderator == LLM_Moderator.flag_nothing:
+            elif ml_moderator == LLM_Moderator.nothing:
                 response = "no"
-            elif ml_moderator == LLM_Moderator.flag_everything:
+            elif ml_moderator == LLM_Moderator.everything:
                 response = "yes"
             else:
                 raise NotImplementedError("Moderator policy not implemented")
