@@ -64,6 +64,9 @@ with open(token_path) as f:
     TOGETHER_AI_API_KEY = tokens['together-ai']
     GCP_PROJECT_ID = tokens['gcp']
     ml_moderator = LLM_Moderator.from_str(tokens['llm-moderator'].lower())
+prompt_path =  'LLM_prompt.txt'
+with open(prompt_path) as f:
+    LLM_PROMPT = f.read()
 
 @dataclass
 class UserStats:
@@ -474,29 +477,35 @@ class ModBot(discord.Client):
         TODO: Once you know how you want to evaluate messages in your channel, 
         insert your code here! This will primarily be used in Milestone 3. 
         '''
-        prompt = "On a binary scale (yes, no) without providing reasoning and in the format 'Impersonation: [RATING]; Misinformation: [RATING]', please rate this tweet on X in terms of both impersonation and misinformation: "
 
         try:
             if ml_moderator == LLM_Moderator.llama70b:
-                response = self.query_together_ai("meta-llama/Llama-3-70b-chat-hf", prompt+message)
+                response = self.query_together_ai("meta-llama/Llama-3-70b-chat-hf", LLM_PROMPT + message)
             elif ml_moderator == LLM_Moderator.llama8b:
-                response = self.query_together_ai("meta-llama/Llama-3-8b-chat-hf", prompt+message)
+                response = self.query_together_ai("meta-llama/Llama-3-8b-chat-hf", LLM_PROMPT + message)
             elif ml_moderator == LLM_Moderator.gemini:
-                response = self.query_gcp(prompt+message)
+                response = self.query_gcp(LLM_PROMPT + message)
             elif ml_moderator == LLM_Moderator.classifier:
                 raise NotImplementedError("Classifier not implemented for moderation yet")
                 response = None
             elif ml_moderator == LLM_Moderator.nothing:
-                response = "no"
+                response = "Misinformation: no"
             elif ml_moderator == LLM_Moderator.everything:
-                response = "yes"
+                response = "Misinformation: yes"
             else:
                 raise NotImplementedError("Moderator policy not implemented")
             
-            if response.lower().strip() == "yes":
+            
+            response = response.lower().strip()
+            try:
+                response = response[16:]
+            except:
+                response = "no"
+            
+            if response == "yes":
                 response = True # contains misinformation/disinformation, etc
             else:
-                response = False # not to be moderated
+                response = False # not to be moderated if invalid response or "no"
         except:
             response = False # if invalid response or error encountered, do nothing
 
