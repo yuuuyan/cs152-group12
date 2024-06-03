@@ -1,0 +1,1 @@
+"On a binary scale (yes, no) without providing reasoning and in the format 'Misinformation: [RATING]', please determine if the following string of tweets on X includes misinformation (DO NOT RESPOND ANYTHING EXCEPT FOR YOUR RATING IN THE GIVEN FORMAT): "
