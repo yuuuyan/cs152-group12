@@ -5,10 +5,9 @@ import torch.optim as optim
 import numpy as np
 import pandas as pd
 # import time
-import DiscordBot.datasets as ds
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
+import datasets
+# import DiscordBot.datasets.datasets as ds
+from transformers import AutoTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
 
 if torch.cuda.is_available():
     DEVICE = torch.device("cuda")
@@ -19,25 +18,26 @@ else:
 train_filepath = "DiscordBot/datasets/train.csv"
 test_filepath = "DiscordBot/datasets/test.csv"
 
-df_train = pd.read_csv(train_filepath)
-df_test = pd.read_csv(test_filepath)
+data_files = {"train": train_filepath, "test": test_filepath}
+dataset = datasets.load_dataset("csv", data_files=data_files)
 
-tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 
-def preprocess_function(examples):
+def preprocess_data(examples):
     return tokenizer(examples['text'], padding='max_length', truncation=True)
 
-training_tokenized_dataset = df_train.map(preprocess_function, batched=True)
-testing_tokenized_dataset = df_test.map(preprocess_function, batched=True)
+tokenized_dataset = dataset.map(preprocess_data, batched=True)
+tokenized_dataset = tokenized_dataset.rename_column("misinformation", "labels")
+tokenized_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
 
 model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
+model.to(DEVICE)
 
 training_args = TrainingArguments(
     output_dir="./results",
     evaluation_strategy="epoch",
-    learning_rate=2e-5,
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=8,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
     num_train_epochs=3,
     weight_decay=0.01,
 )
@@ -45,10 +45,11 @@ training_args = TrainingArguments(
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=training_tokenized_dataset["train"],
-    eval_dataset=testing_tokenized_dataset["test"],
+    train_dataset=tokenized_dataset["train"],
+    eval_dataset=tokenized_dataset["test"],
 )
 
+print(tokenized_dataset["train"])
 trainer.train()
 
 results = trainer.evaluate()
