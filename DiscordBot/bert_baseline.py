@@ -3,7 +3,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import pandas as pd
 # import time
+import DiscordBot.datasets as ds
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
@@ -13,19 +15,9 @@ if torch.cuda.is_available():
 else:
     DEVICE = torch.device("cpu")
 
-# sequences dim: [num_sequences, sequence_length, num_features]
-# targets dim: [num_sequences, num_target_features]
-
-# TODO: how to streamline the filepath/dataset situation when we want to run 
-    # the model in a parallel, comparative manner
-filepath = 'datasets/20240521084500.export.csv'
-dataset = GDELTDataset(filepath=filepath)
-sequences = dataset.sequences
-targets = dataset.targets
-
-input_dim = sequences.shape[2] * sequences.shape[1]
-hidden_dim = 128
-output_dim = targets.shape[1]
+# TODO input filepath
+filepath = "DiscordBot/datasets/train.csv"
+df = pd.read_csv(filepath)
 
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
@@ -34,9 +26,6 @@ def preprocess_function(examples):
 
 tokenized_datasets = dataset.map(preprocess_function, batched=True)
 
-
-model = SimpleNN(input_dim, hidden_dim, output_dim)
-model.to(DEVICE)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
