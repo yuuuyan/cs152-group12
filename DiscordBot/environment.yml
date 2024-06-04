@@ -1,0 +1,16 @@
+name: cs224n
+channels:
+  - defaults
+dependencies:
+  - jupyter
+  - gensim
+  - nltk
+  - scikit-learn
+  - ipykernel
+  - numpy
+  - python[version='>=3.8']
+  - matplotlib
+  - docopt
+  - torchvision
+  - pytorch
+  - tqdm
