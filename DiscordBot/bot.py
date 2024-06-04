@@ -200,9 +200,10 @@ class ModBot(discord.Client):
                     abuser_msg += "We deleted the following message from our platform since it violated our community guidelines: %s" % (msg_content)
                     await abuser.send(abuser_msg)
                 except:
-                    pass
+                    return
 
                 # updating user stats
+                self.username_map[abuser_name] = abuser_id
                 self.user_stats[abuser_id].num_posts_deleted += 1
                 self.user_stats[abuser_id].automatic_post_deletions += 1
 
@@ -333,10 +334,10 @@ class ModBot(discord.Client):
                             mal_reporter = True
                             response_content = None
 
-                            if self.user_stats[reporter_id].num_malicious_reports > 0:
-                                response_content = 'n' # not first time offense
+                            if self.user_stats[reporter_id].num_malicious_reports > 3:
+                                response_content = 'n' # not first three offenses
                             else:
-                                response_content = 'y' # is first time offense
+                                response_content = 'y' # is a first three offense
 
                             self.user_stats[reporter_id].num_malicious_reports += 1
 
@@ -375,7 +376,7 @@ class ModBot(discord.Client):
                             reply = ""
                             if mal_reporter:
                                 reply += "This account has created %d malicious reports previously. " % (self.user_stats[reporter_id].num_malicious_reports - 1)
-                            reply += "How long should their account be suspended for? (e.g. 60hrs)"
+                            reply += "How long should their account be suspended for? (e.g. 60 hrs)"
                             await mod_channel.send(reply)
 
                             # Wait for moderator response
