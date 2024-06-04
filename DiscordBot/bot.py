@@ -25,7 +25,6 @@ logger.addHandler(handler)
 
 NUM_FLAG_AUTOMATIC = 3
 
-
 # GEMINI, LLAMA_70B, LLAMA_8B, CLASSIFIER
 class LLM_Moderator(Enum):
     gemini = 1
@@ -371,7 +370,7 @@ class ModBot(discord.Client):
                                 reply = f"The account of {abuser.name} has been suspended indefinitely"
                                 self.user_stats[abuser_id].num_suspensions += 1
                             except discord.Forbidden:
-                                reply = "I do not have persmissions to send a DM."
+                                reply = "I do not have permissions to send a DM."
                         if code == "3": # suspension of mentioned duration
                             reply = ""
                             if mal_reporter:
