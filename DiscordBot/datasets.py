@@ -39,7 +39,7 @@ class DisinformationDataset(Dataset):
                     vocab[word] = len(vocab)
         return vocab    
 
-def get_loader(filepath, batch_size=32, shuffle=True):
+def get_loader(filepath, batch_size=32, shuffle=False):
     """
     Create data loader.
     :param filepath: Path to the CSV data file.
