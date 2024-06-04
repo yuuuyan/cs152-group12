@@ -1,5 +1,6 @@
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
+import torch
 
 class MisinformationDataset(Dataset):
     def __init__(self, true_filepath, false_filepath, filepath=None):
@@ -26,6 +27,15 @@ class MisinformationDataset(Dataset):
 
     def prepare_data_single_input(self):
         self.df = pd.DataFrame(self.data)
+
+    def __len__(self):
+        return len(self.df)
+    
+    def __getitem__(self, index):
+        sample = self.df.iloc[index]
+        label = torch.tensor(sample["misinformation"])
+        text = sample["text"]
+        return {"text": text, "label": label}
 
 def get_loader(filepath, batch_size=32, shuffle=True):
     """
