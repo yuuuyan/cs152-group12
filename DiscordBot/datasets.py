@@ -50,7 +50,7 @@ class MisinformationDataset(Dataset):
                     vocab[word] = len(vocab)
         return vocab    
 
-def get_loader(filepath, batch_size=32, shuffle=False):
+def get_loader(filepath, batch_size=32, shuffle=True):
     """
     Create data loader.
     :param filepath: Path to the CSV data file.
@@ -59,6 +59,15 @@ def get_loader(filepath, batch_size=32, shuffle=False):
     :param shuffle: Whether to shuffle the data.
     """
     dataset = MisinformationDataset()
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+    return loader
+
+# Example usage
+# if __name__ == '__main__':
+#     datasets_home_dir = ''
+#     true_filepath = 'datasets/DataSet_Misinfo_TRUE.csv'
+#     fake_filepath = 'datasets/DataSet_Misinfo_FALSE.csv'
+#     loader = get_loader(true_filepath, fake_filepath, batch_size=64)    dataset = MisinformationDataset()
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=2)
     return loader
 
