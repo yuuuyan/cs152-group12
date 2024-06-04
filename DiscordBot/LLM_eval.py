@@ -14,7 +14,7 @@ parser.add_argument("--model", required=True, help="gemini, llama8b, llama70b")
 parser.add_argument("--output-file", required=True)
 args = parser.parse_args()
 
-num_save = 25
+num_save = 50
 
 token_path = 'tokens.json'
 if not os.path.isfile(token_path):
@@ -60,10 +60,11 @@ with open(args.data_file, newline='', encoding='utf-8') as csvfile:
     next(csvreader)
 
     for i, row in enumerate(csvreader):
-        message = row[1]
+        message = row[0]
         model_input = prompt+message
 
         outputs[i]["message"] = message
+        outputs[i]["gt"] = int(row[1])
 
         success = False
         retries = 3
@@ -76,7 +77,9 @@ with open(args.data_file, newline='', encoding='utf-8') as csvfile:
                     response = query_together_ai("meta-llama/Llama-3-8b-chat-hf", model_input)
                 elif args.model == "gemini":
                     response = query_gcp(model_input)
-                outputs[i]["prediction"] = response
+                outputs[i]["response"] = response
+                response = response.lower()
+                outputs[i]["prediction"] = 1 if "yes" in response else 0 
                 success = True
             except:
                 wait = retries * 30
@@ -84,10 +87,10 @@ with open(args.data_file, newline='', encoding='utf-8') as csvfile:
                 count += 1
                 outputs[i]["prediction"] = None
 
-        if i % num_save == 0:
+        if i % num_save == 0 and i != 0:
             with open(args.output_file, 'w') as f:
-                json.dump(outputs, f)
+                json.dump(outputs, f, indent=6)
 
 with open(args.output_file, 'w') as f:
-    json.dump(outputs, f)
+    json.dump(outputs, f, indent=6)
 
