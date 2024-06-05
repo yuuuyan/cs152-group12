@@ -256,8 +256,7 @@ class AutomaticReport(Report):
     def print_moderator_summary(self):
         reply = "User %s has been flagged by the automatic moderation policy %d times. Deleted messages include:\n" % (self.abuser_username, self.num_automatic_violations)
         for msg in self.deleted_msgs:
-            reply += msg + "\n"
+            reply += "- " + msg + "\n"
         reply += "Consider suspending the account if the messages violate community guidelines"
         return [reply]
-    
 
