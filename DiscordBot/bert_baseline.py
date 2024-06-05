@@ -40,19 +40,27 @@ tokenized_dataset = tokenized_dataset.rename_column("misinformation", "labels")
 tokenized_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
 
 model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
+model.classifier = nn.Sequential(nn.Linear(768, 512), nn.ReLU(), nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 128), nn.ReLU(), nn.Linear(128, 2))
 model.to(DEVICE)
 
 # freezing pretrained BERT encoder
 for param in model.base_model.parameters():
     param.requires_grad = False
 
+print("Printing model layers with gradient setting...")
+for name, param in model.named_parameters():
+    print(name, param.requires_grad)
+
 training_args = TrainingArguments(
     output_dir="./results",
     evaluation_strategy="epoch",
     per_device_train_batch_size=16,
     per_device_eval_batch_size=16,
-    num_train_epochs=10,
+    num_train_epochs=2,
     weight_decay=0.01,
+    logging_steps=100,
+    learning_rate=0.001,
+    save_steps=500
 )
 
 trainer = Trainer(
@@ -63,9 +71,9 @@ trainer = Trainer(
     compute_metrics=compute_metrics
 )
 
-
-print("Trainng model")
+print("Training model")
 trainer.train()
+trainer.save_model("final_model")
 
 print("Running evaluation")
 results = trainer.evaluate()
