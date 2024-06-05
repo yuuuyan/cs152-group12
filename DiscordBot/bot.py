@@ -506,7 +506,7 @@ class ModBot(discord.Client):
                 response = True # contains misinformation/disinformation, etc
             else:
                 response = False # not to be moderated if invalid response or "no"
-        except:
+        except Exception as e:
             response = False # if invalid response or error encountered, do nothing
 
         
@@ -534,7 +534,7 @@ class ModBot(discord.Client):
 
 
     def query_gcp(self, text: str) -> dict:
-        vertexai.init(project=GCP_PROJECT_ID, location="us-central1")
+        vertexai.init(project=GCP_PROJECT_ID, location="us-west4")
         model = GenerativeModel(model_name="gemini-1.0-pro-002")
 
         response = model.generate_content(
