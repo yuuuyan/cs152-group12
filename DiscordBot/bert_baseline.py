@@ -9,6 +9,7 @@ import datasets
 # import DiscordBot.datasets.datasets as ds
 from transformers import AutoTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
 import evaluate
+import os
 
 # adapted from https://huggingface.co/docs/transformers/en/training
 metric = evaluate.combine(["accuracy", "f1", "precision", "recall"])
@@ -60,7 +61,7 @@ training_args = TrainingArguments(
     weight_decay=0.01,
     logging_steps=100,
     learning_rate=0.001,
-    save_steps=500
+    save_steps=2000
 )
 
 trainer = Trainer(
@@ -72,7 +73,7 @@ trainer = Trainer(
 )
 
 print("Training model")
-trainer.train()
+trainer.train(resume_from_checkpoint = True)
 trainer.save_model("final_model")
 
 print("Running evaluation")
