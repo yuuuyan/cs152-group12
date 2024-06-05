@@ -15,7 +15,7 @@ from collections import defaultdict
 import json
 from tqdm import tqdm
 
-ckpt_dir = "./results/checkpoint-4000"
+ckpt_dir = "./results/checkpoint-18500"
 output_file = "classifier_outputs.json"
 num_save = 50
 
